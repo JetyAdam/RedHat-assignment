@@ -1,0 +1,49 @@
+#!/usr/bin/env python3
+
+import argparse
+import sys
+import re
+
+def main():
+    parser = argparse.ArgumentParser(description='Search for PATTERN in each FILE or standard input.')
+    parser.add_argument('-q', '--quiet', action='store_true', help='Suppress the prefixing of line numbers on output lines.')
+    parser.add_argument('-e', '--pattern', required=True, type=str, help='Pattern to search for (regex supported).')
+    parser.add_argument('files', nargs='*', help='Files to search. If empty, search standard input.')
+    args = parser.parse_args()
+
+    try:
+        pattern = re.compile(args.pattern)
+    except re.error as e:
+        print(f"Invalid regex pattern: {e}", file=sys.stderr)
+        sys.exit(1)
+    
+    if args.files:
+        any_matches = False
+        for file_name in args.files:
+            try:
+                with open(file_name, 'r', encoding='utf-8') as file:
+                    if grep_file(file, pattern, args.quiet):
+                        any_matches = True
+            except IOError as e:
+                print(f"Error opening {file_name}: {e}", file=sys.stderr)
+            except UnicodeDecodeError as e:
+                print(f"Error reading {file_name}: {e}", file=sys.stderr)
+        if not any_matches:
+            print("No matches found.", file=sys.stderr)
+    else:
+        if not grep_file(sys.stdin, pattern, args.quiet):
+            print("No matches found.", file=sys.stderr)
+
+def grep_file(file, pattern, quiet):
+    line_number = 1
+    found_match = False
+    for line in file:
+        if pattern.search(line):
+            prefix = f"{line_number}:" if not quiet else ""
+            print(f"{prefix}{line.strip()}")
+            found_match = True
+        line_number += 1
+    return found_match
+
+if __name__ == "__main__":
+    main()

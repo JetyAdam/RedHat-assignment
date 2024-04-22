@@ -1,0 +1,65 @@
+#!/usr/bin/env python3
+
+import argparse
+import os
+import sys
+import pwd
+import grp
+import time
+
+def list_directory(path, recursive=False):
+    try:
+        entries = os.scandir(path)
+    except PermissionError as e:
+        print(f"Permission denied: {e}", file=sys.stderr)
+        return
+    except FileNotFoundError:
+        print(f"File not found: {path}", file=sys.stderr)
+        return
+    except OSError as e:
+        print(f"Error accessing {path}: {e}", file=sys.stderr)
+        return
+
+    with entries:
+        for entry in entries:
+            if entry.is_dir() and recursive:
+                print(f"\n{entry.path}:")
+                list_directory(entry.path, recursive=True)
+            display_entry(entry)
+
+def display_entry(path):
+    try:
+        stat = os.stat(path)
+        owner = pwd.getpwuid(stat.st_uid).pw_name
+        group = grp.getgrgid(stat.st_gid).gr_name
+        permissions = oct(stat.st_mode)[-3:]
+        mod_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(stat.st_mtime))
+        print(f"{os.path.basename(path)} {permissions} {owner}/{group} {mod_time}")
+    except FileNotFoundError:
+        print(f"File not found: {path}", file=sys.stderr)
+    except PermissionError:
+        print(f"Permission denied: {path}", file=sys.stderr)
+    except KeyError:
+        print(f"User or group ID not found in system records for: {path}", file=sys.stderr)
+    except OSError as e:
+        print(f"Error retrieving information for {path}: {e}", file=sys.stderr)
+
+def main():
+    parser = argparse.ArgumentParser(description='List information about the FILEs (the current directory by default).',
+                                     usage='%(prog)s [-r] [FILE...]',
+                                     epilog='Use "%(prog)s --help" for more information about the options.')
+    parser.add_argument('-r', '--recursive', action='store_true', help='List subdirectories recursively.')
+    parser.add_argument('files', nargs='*', default=['.'], help='Specify the files or directories to list.')
+    args = parser.parse_args()
+
+    for path in args.files:
+        if os.path.isdir(path):
+            print(f"\n{path}:")
+            list_directory(path, recursive=args.recursive)
+        elif os.path.exists(path):
+            display_entry(path)
+        else:
+            print(f"File not found: {path}", file=sys.stderr)
+
+if __name__ == "__main__":
+    main()
