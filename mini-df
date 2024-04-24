@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+
+import argparse
+import os
+import shutil
+import sys
+
+def human_readable(size_in_bytes):
+    """Convert size from bytes to a human-readable format."""
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB']:
+        if size_in_bytes < 1024:
+            return f"{size_in_bytes:.2f} {unit}"
+        size_in_bytes /= 1024   # Conversion to a higher unit
+    return f"{size_in_bytes:.2f} YB"    # Edge case - very unlikely (yottabyte)
+
+def print_disk_usage(path, human_readable_flag):
+    """Print disk usage statistics for the given path."""
+    try:
+        usage = shutil.disk_usage(path)
+        total, used, free = usage.total, usage.used, usage.free
+
+        if human_readable_flag:
+            total = human_readable(total)
+            used = human_readable(used)
+            free = human_readable(free)
+
+        print(f"Path: {path}")
+        print(f"Total Space: {total}")
+        print(f"Used Space: {used}")
+        print(f"Free Space: {free}\n")
+    except FileNotFoundError:
+        print(f"Error: The path '{path}' does not exist.", file=sys.stderr)
+    except PermissionError:
+        print(f"Error: Permission denied for accessing '{path}'.", file=sys.stderr)
+    except Exception as e:
+        print(f"An unexpected error occurred: {str(e)}", file=sys.stderr)
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Display disk space usage for the specified paths or current directory. Provides total, used, and free space metrics.",
+        epilog="Examples:\n  ./mini-df\n  ./mini-df -h /path/to/directory\n  ./mini-df /path/to/directory",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        add_help=False  # Disable the automatic help option (-h) which conflicts with the optional parameter for human-readable format
+    )
+    parser.add_argument('paths', nargs='*', default=['.'], help="Paths to calculate disk space usage.")
+    parser.add_argument('-h', '--human-readable', action='store_true', help="Display sizes in human-readable format (e.g., KB, MB).")
+    parser.add_argument('--help', action='help', default=argparse.SUPPRESS,
+                        help='Show this help message and exit.')
+    args = parser.parse_args()
+
+    for path in args.paths:
+        print_disk_usage(path, args.human_readable)
+
+if __name__ == "__main__":
+    main()
